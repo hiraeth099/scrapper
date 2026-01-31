@@ -348,34 +348,34 @@ function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
 function JobListItem({ job, onClick }: { job: Job; onClick: () => void }) {
   return (
     <Card className="p-5 hover:border-gray-600 transition-all cursor-pointer" onClick={onClick}>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="w-12 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
           <Briefcase size={24} className="text-gray-400" />
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-3 mb-2">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3 mb-2">
+            <div className="flex-1 min-w-0">
               <h3 className="font-bold text-white line-clamp-1">{job.title}</h3>
               <p className="text-sm text-gray-400">{job.company}</p>
             </div>
-            <ScoreBadge score={job.score} />
+            <ScoreBadge score={job.score} className="self-start" />
           </div>
 
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
             <div className="flex items-center gap-1">
               <MapPin size={14} />
-              <span>{job.location || 'Remote'}</span>
+              <span className="truncate">{job.location || 'Remote'}</span>
             </div>
             <div className="flex items-center gap-1">
               <DollarSign size={14} />
-              <span>{formatSalary(job.salary_min, job.salary_max)}</span>
+              <span className="truncate">{formatSalary(job.salary_min, job.salary_max)}</span>
             </div>
             <Badge variant="info">{job.portal.display_name}</Badge>
           </div>
         </div>
 
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 self-start sm:self-center">
           {new Date(job.created_at).toLocaleDateString()}
         </span>
       </div>
