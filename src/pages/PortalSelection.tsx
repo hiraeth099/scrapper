@@ -5,7 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Toggle } from '../components/ui/Toggle';
 import { useToast } from '../components/ui/Toast';
-import { Info, AlertCircle, CheckCircle } from 'lucide-react';
+import { Info, AlertCircle, CheckCircle, Settings, Save, Shield } from 'lucide-react';
 
 interface Portal {
   id: string;
@@ -20,6 +20,7 @@ interface UserPortalSetting {
   portal_id: string;
   is_enabled: boolean;
   priority: number;
+  portal_config?: any;
 }
 
 const PORTAL_ICONS: Record<string, string> = {
@@ -43,6 +44,8 @@ export function PortalSelection() {
   const [userSettings, setUserSettings] = useState<UserPortalSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedPortal, setExpandedPortal] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (profile) {
@@ -63,6 +66,15 @@ export function PortalSelection() {
       try {
         const settingsData = await api.getUserPortals(profile!.id);
         setUserSettings(settingsData || []);
+        
+        // Initialize API keys from config
+        const keys: Record<string, string> = {};
+        settingsData?.forEach((s: UserPortalSetting) => {
+          if (s.portal_config?.scraperapi_key) {
+            keys[s.portal_id] = s.portal_config.scraperapi_key;
+          }
+        });
+        setApiKeys(keys);
       } catch (settingsError) {
         console.log('No user portal settings found, initializing...');
         setUserSettings([]);
@@ -167,6 +179,26 @@ export function PortalSelection() {
     }
   };
 
+  const handleConfigUpdate = async (portalId: string) => {
+    const key = apiKeys[portalId];
+    try {
+      const currentSetting = getPortalSetting(portalId);
+      const updatedSetting = await api.updateUserPortal(profile!.id, portalId, {
+        portal_config: { ...currentSetting.portal_config, scraperapi_key: key }
+      });
+
+      setUserSettings(prev => prev.map(s => 
+        s.portal_id === portalId ? { ...s, portal_config: updatedSetting.portal_config } : s
+      ));
+
+      showToast(`${portalId} configuration saved`, 'success');
+      setExpandedPortal(null);
+    } catch (error) {
+      console.error('Error updating config:', error);
+      showToast('Failed to save configuration', 'error');
+    }
+  };
+
   const getPortalSetting = (portalId: string) => {
     return userSettings.find(s => s.portal_id === portalId) || {
       id: portalId,
@@ -247,32 +279,71 @@ export function PortalSelection() {
                       </Badge>
                     </div>
                   </div>
+                  {['naukri', 'indeed'].includes(portal.id) && (
+                    <button 
+                      onClick={() => setExpandedPortal(expandedPortal === portal.id ? null : portal.id)}
+                      className="p-2 hover:bg-gray-700 rounded-lg text-gray-400"
+                      title="Configuration"
+                    >
+                      <Settings size={20} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Enable Scraping</span>
-                    <Toggle
-                      checked={setting.is_enabled}
-                      onChange={(val) => handleToggle(portal.id, val)}
-                    />
-                  </div>
+                  {expandedPortal === portal.id ? (
+                    <div className="p-4 bg-gray-900/50 rounded-lg border border-gray-700 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        <Shield size={14} className="text-blue-400" />
+                        ScraperAPI Settings
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">API Key</label>
+                        <input 
+                          type="password"
+                          value={apiKeys[portal.id] || ''}
+                          onChange={(e) => setApiKeys(prev => ({ ...prev, [portal.id]: e.target.value }))}
+                          placeholder="Your ScraperAPI Key"
+                          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="text-[10px] text-gray-500 leading-tight">
+                        Used to bypass bot detection on {portal.display_name}. Get one for free at <a href="https://scraperapi.com" target="_blank" className="text-blue-400 hover:underline">scraperapi.com</a>
+                      </div>
+                      <button 
+                        onClick={() => handleConfigUpdate(portal.id)}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Save size={16} /> Save Config
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-400">Enable Scraping</span>
+                        <Toggle
+                          checked={setting.is_enabled}
+                          onChange={(val) => handleToggle(portal.id, val)}
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">Priority</label>
-                    <select
-                      value={setting.priority}
-                      onChange={(e) => handlePriorityChange(portal.id, parseInt(e.target.value))}
-                      className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      disabled={!setting.is_enabled}
-                    >
-                      {[1, 2, 3, 4, 5, 6].map((num) => (
-                        <option key={num} value={num}>
-                          Priority {num}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Priority</label>
+                        <select
+                          value={setting.priority}
+                          onChange={(e) => handlePriorityChange(portal.id, parseInt(e.target.value))}
+                          className="w-full px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={!setting.is_enabled}
+                        >
+                          {[1, 2, 3, 4, 5, 6].map((num) => (
+                            <option key={num} value={num}>
+                              Priority {num}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Card>
             );
