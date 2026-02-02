@@ -194,6 +194,9 @@ export function PortalSelection() {
 
       showToast(`${portalId} configuration saved`, 'success');
       setExpandedPortal(null);
+    } catch (error) {
+      console.error('Error updating config:', error);
+      showToast('Failed to save configuration', 'error');
     }
   };
 
