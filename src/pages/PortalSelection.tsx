@@ -46,6 +46,7 @@ export function PortalSelection() {
   const [error, setError] = useState<string | null>(null);
   const [expandedPortal, setExpandedPortal] = useState<string | null>(null);
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [testingKey, setTestingKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -193,9 +194,26 @@ export function PortalSelection() {
 
       showToast(`${portalId} configuration saved`, 'success');
       setExpandedPortal(null);
-    } catch (error) {
-      console.error('Error updating config:', error);
-      showToast('Failed to save configuration', 'error');
+    }
+  };
+
+  const handleTestKey = async (portalId: string) => {
+    const key = apiKeys[portalId];
+    if (!key) {
+      showToast('Please enter an API key first', 'error');
+      return;
+    }
+
+    try {
+      setTestingKey(portalId);
+      const result = await api.testProxy(key);
+      if (result.success) {
+        showToast('Connection successful! Proxy is working.', 'success');
+      }
+    } catch (error: any) {
+      showToast(error.message || 'Connection failed', 'error');
+    } finally {
+      setTestingKey(null);
     }
   };
 
@@ -299,22 +317,41 @@ export function PortalSelection() {
                       </div>
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">API Key</label>
-                        <input 
-                          type="password"
-                          value={apiKeys[portal.id] || ''}
-                          onChange={(e) => setApiKeys(prev => ({ ...prev, [portal.id]: e.target.value }))}
-                          placeholder="Your ScraperAPI Key"
-                          className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <div className="flex gap-2">
+                          <input 
+                            type="password"
+                            value={apiKeys[portal.id] || ''}
+                            onChange={(e) => setApiKeys(prev => ({ ...prev, [portal.id]: e.target.value }))}
+                            placeholder="Your ScraperAPI Key"
+                            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <button
+                            onClick={() => handleTestKey(portal.id)}
+                            disabled={testingKey === portal.id}
+                            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                          >
+                            {testingKey === portal.id ? 'Testing...' : 'Test'}
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-gray-500 leading-tight">
-                        Used to bypass bot detection on {portal.display_name}. Get one for free at <a href="https://scraperapi.com" target="_blank" className="text-blue-400 hover:underline">scraperapi.com</a>
+                      <div className="bg-blue-600/10 border border-blue-500/20 p-3 rounded-lg">
+                        <p className="text-[11px] text-blue-300 leading-normal mb-2">
+                          ScraperAPI is required to bypass bot detection on {portal.display_name}. 
+                          The <b>Free Plan</b> provides 1,000 requests/month.
+                        </p>
+                        <a 
+                          href="https://www.scraperapi.com?fp_ref=hiraeth099" 
+                          target="_blank" 
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          Get Free API Key <Settings size={12} className="rotate-45" />
+                        </a>
                       </div>
                       <button 
                         onClick={() => handleConfigUpdate(portal.id)}
-                        className="w-full flex items-center justify-center gap-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold shadow-lg shadow-green-900/20 transition-all active:scale-95"
                       >
-                        <Save size={16} /> Save Config
+                        <Save size={16} /> Save & Apply Config
                       </button>
                     </div>
                   ) : (

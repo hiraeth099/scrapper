@@ -170,10 +170,17 @@ class ApiClient {
         return this.request(`/api/users/${userId}/portals`);
     }
 
-    async updateUserPortal(userId: string, portalName: string, data: { is_enabled?: boolean; priority?: number }) {
+    async updateUserPortal(userId: string, portalName: string, data: { is_enabled?: boolean; priority?: number; portal_config?: any }) {
         return this.request(`/api/users/${userId}/portals/${portalName}`, {
             method: 'PUT',
             body: JSON.stringify(data),
+        });
+    }
+
+    async testProxy(apiKey: string) {
+        return this.request('/api/portals/test-proxy', {
+            method: 'POST',
+            body: JSON.stringify({ api_key: apiKey }),
         });
     }
 }
