@@ -291,14 +291,14 @@ export function PortalSelection() {
             The following portals are temporarily unavailable due to anti-bot protection or API issues:
           </p>
           <div className="flex flex-wrap gap-2">
-            {['Naukri.com', 'Indeed', 'Instahyre', 'Wellfound', 'Cutshort'].map((name) => (
+            {['Instahyre', 'Wellfound', 'Cutshort'].map((name) => (
               <Badge key={name} variant="default">
                 {name}
               </Badge>
             ))}
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            We're working on adding browser automation support for these portals.
+            We're working on adding improved automation support for these portals.
           </p>
         </Card>
       </div>
