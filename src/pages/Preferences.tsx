@@ -41,6 +41,8 @@ export function Preferences() {
   });
 
   const [roleInput, setRoleInput] = useState('');
+  const [resumeJsonText, setResumeJsonText] = useState('');
+  const [jsonError, setJsonError] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -53,7 +55,7 @@ export function Preferences() {
       const data = await api.getUserPreferences(profile!.id);
 
       if (data) {
-        setPreferences({
+        const prefs = {
           target_roles: data.target_roles || [],
           min_salary: data.min_salary_inr || 1200000,
           max_salary: data.max_salary_inr,
@@ -63,7 +65,9 @@ export function Preferences() {
           min_experience: data.min_experience_years || 0,
           max_experience: data.max_experience_years || 15,
           resume_json: data.resume_json || {},
-        });
+        };
+        setPreferences(prefs);
+        setResumeJsonText(JSON.stringify(prefs.resume_json, null, 2));
       }
     } catch (error) {
       console.error('Error fetching preferences:', error);
@@ -73,9 +77,28 @@ export function Preferences() {
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const handleResumeJsonChange = (text: string) => {
+    setResumeJsonText(text);
+    setJsonError(''); // Clear error while typing
+  };
+
+  const validateAndUpdateResumeJson = () => {
     try {
+      const parsed = JSON.parse(resumeJsonText);
+      setPreferences({ ...preferences, resume_json: parsed });
+      setJsonError('');
+      showToast('Resume JSON validated ✓', 'success');
+    } catch (error) {
+      setJsonError('Invalid JSON format');
+    }
+  };
+
+  const handleSave = async () => {
+    // Validate JSON before saving
+    try {
+      const parsed = JSON.parse(resumeJsonText);
+      
+      setSaving(true);
       await api.updateUserPreferences(profile!.id, {
         target_roles: preferences.target_roles,
         min_salary_inr: preferences.min_salary,
@@ -84,13 +107,18 @@ export function Preferences() {
         remote_only: preferences.remote_only,
         min_experience_years: preferences.min_experience,
         max_experience_years: preferences.max_experience,
-        resume_json: preferences.resume_json,
+        resume_json: parsed,
       });
       
       showToast('Preferences saved successfully!', 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving preferences:', error);
-      showToast('Failed to save preferences', 'error');
+      if (error.name === 'SyntaxError') {
+        showToast('Invalid JSON in resume - please check formatting', 'error');
+        setJsonError('Invalid JSON format');
+      } else {
+        showToast('Failed to save preferences', 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -304,16 +332,14 @@ export function Preferences() {
         </p>
 
         <textarea
-          value={JSON.stringify(preferences.resume_json, null, 2)}
-          onChange={(e) => {
-            try {
-              const parsed = JSON.parse(e.target.value);
-              setPreferences({ ...preferences, resume_json: parsed });
-            } catch (error) {
-              console.error('Invalid JSON');
-            }
-          }}
-          className="w-full h-64 px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={resumeJsonText}
+          onChange={(e) => handleResumeJsonChange(e.target.value)}
+          onBlur={validateAndUpdateResumeJson}
+          className={`w-full h-64 px-4 py-3 bg-gray-800/50 border ${
+            jsonError ? 'border-red-500' : 'border-gray-700'
+          } rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 ${
+            jsonError ? 'focus:ring-red-500' : 'focus:ring-blue-500'
+          }`}
           placeholder={`{
   "experience_years": 5,
   "current_role": "Platform Engineer",
@@ -323,6 +349,9 @@ export function Preferences() {
   "education": ""
 }`}
         />
+        {jsonError && (
+          <p className="text-red-500 text-xs mt-2 font-mono">{jsonError}</p>
+        )}
       </Card>
 
       <div className="flex justify-end">
