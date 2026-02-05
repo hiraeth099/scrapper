@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -48,9 +49,12 @@ function App() {
   };
 
   return (
-    <DashboardLayout currentPage={currentPage} onNavigate={setCurrentPage}>
-      {renderPage()}
-    </DashboardLayout>
+    <>
+      <DashboardLayout currentPage={currentPage} onNavigate={setCurrentPage}>
+        {renderPage()}
+      </DashboardLayout>
+      <SpeedInsights />
+    </>
   );
 }
 
