@@ -149,6 +149,18 @@ class ApiClient {
         return this.request(`/api/users/${userId}/stats`);
     }
 
+    async getDashboardStats(userId: string) {
+        return this.request(`/api/users/${userId}/dashboard/stats`);
+    }
+
+    async getDashboardTopJobs(userId: string) {
+        return this.request(`/api/users/${userId}/dashboard/top-jobs`);
+    }
+
+    async getUserAnalytics(userId: string, days = 30) {
+        return this.request(`/api/users/${userId}/analytics?days=${days}`);
+    }
+
     // Preferences
     async getUserPreferences(userId: string) {
         return this.request(`/api/users/${userId}/preferences`);

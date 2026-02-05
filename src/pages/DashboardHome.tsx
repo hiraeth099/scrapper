@@ -43,51 +43,33 @@ export function DashboardHome() {
 
   const fetchDashboardData = async () => {
     try {
-      // Get user stats from API
-      const scores = await api.getUserScores(profile!.id);
-      const applications = await api.getUserApplications(profile!.id);
+      setLoading(true);
       
-      // Calculate today's jobs
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayScores = scores.filter((s: any) => {
-        const scoredDate = new Date(s.scored_at);
-        return scoredDate >= today;
-      });
-
-      const topMatchesCount = todayScores.filter((s: any) => (s.skill_match_score || 0) >= 80).length;
-      const pendingCount = todayScores.filter((s: any) => (s.skill_match_score || 0) >= 60).length;
-
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const appliedThisWeek = applications.filter((a: any) => {
-        const appDate = new Date(a.created_at);
-        return appDate >= weekAgo && a.applied;
-      });
-
-      // Get top jobs
-      const topJobsData = scores
-        .filter((s: any) => (s.skill_match_score || 0) >= 70)
-        .sort((a: any, b: any) => (b.skill_match_score || 0) - (a.skill_match_score || 0))
-        .slice(0, 5)
-        .map((job: any) => ({
-          id: job.id || job.job_id,
-          title: job.job_title,
-          company: job.company,
-          location: job.location || 'Remote',
-          score: job.skill_match_score || 0,
-          portal: job.platform || 'Unknown',
-          created_at: job.scored_at || new Date().toISOString()
-        }));
+      // Fetch stats and top jobs in parallel
+      const [statsData, topJobsData] = await Promise.all([
+        api.getDashboardStats(profile!.id),
+        api.getDashboardTopJobs(profile!.id)
+      ]);
 
       setStats({
-        jobsScrapedToday: todayScores.length,
-        topMatches: topMatchesCount,
-        pendingReview: pendingCount,
-        appliedThisWeek: appliedThisWeek.length,
+        jobsScrapedToday: statsData.jobsScrapedToday || 0,
+        topMatches: statsData.topMatches || 0,
+        pendingReview: statsData.pendingReview || 0,
+        appliedThisWeek: statsData.appliedThisWeek || 0,
       });
 
-      setTopJobs(topJobsData);
+      // Map API response to UI job format
+      const formattedJobs = topJobsData.map((job: any) => ({
+        id: job.job_id || job.id,
+        title: job.job_title,
+        company: job.company,
+        location: 'Remote', // Default or fetch if available
+        score: job.overall_score || 0,
+        portal: job.platform || 'Unknown',
+        created_at: new Date().toISOString() // Or job.created_at
+      }));
+
+      setTopJobs(formattedJobs);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

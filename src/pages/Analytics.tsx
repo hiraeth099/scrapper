@@ -44,53 +44,48 @@ export function Analytics() {
 
   const fetchAnalytics = async () => {
     try {
-      const scores = await api.getUserScores(profile!.id);
-      const applications = await api.getUserApplications(profile!.id, false);
+      setLoading(true);
+      const data = await api.getUserAnalytics(profile!.id, parseInt(timeRange));
 
-      // Filter by time range
-      const daysAgo = new Date();
-      daysAgo.setDate(daysAgo.getDate() - parseInt(timeRange));
+      // Update summary stats
+      const totalApps = data.funnel?.applied || 0;
       
-      const filteredScores = scores.filter((s: any) => new Date(s.scored_at) >= daysAgo);
-      const filteredApps = applications.filter((a: any) => new Date(a.created_at) >= daysAgo);
+      // Calculate weighted average score roughly from distribution if not provided
+      let totalScoreSum = 0;
+      let totalScoreCount = 0;
+      Object.entries(data.jobs_by_score || {}).forEach(([range, count]) => {
+        const c = count as number;
+        if (range === '0-59') totalScoreSum += c * 30;
+        else if (range === '60-79') totalScoreSum += c * 70;
+        else if (range === '80-100') totalScoreSum += c * 90;
+        totalScoreCount += c;
+      });
+      const averageScore = totalScoreCount ? Math.round(totalScoreSum / totalScoreCount) : 0;
 
-      // Calculate stats
-      const jobsByPlatform: Record<string, number> = {};
-      const jobsByScore = { '0-59': 0, '60-79': 0, '80-100': 0 };
-      let totalScore = 0;
-
-      filteredScores.forEach((score: any) => {
-        const platform = score.platform|| 'Unknown';
-        jobsByPlatform[platform] = (jobsByPlatform[platform] || 0) + 1;
-
-        const matchScore = score.skill_match_score || 0;
-        if (matchScore < 60) jobsByScore['0-59']++;
-        else if (matchScore < 80) jobsByScore['60-79']++;
-        else jobsByScore['80-100']++;
-
-        totalScore += matchScore;
+      // Find top platform
+      let topPlatform = 'N/A';
+      let maxCount = 0;
+      Object.entries(data.jobs_by_platform || {}).forEach(([p, c]) => {
+        if ((c as number) > maxCount) {
+          maxCount = c as number;
+          topPlatform = p;
+        }
       });
 
-      const topPlatform = Object.entries(jobsByPlatform).sort(([, a], [, b]) => b - a)[0]?.[0] || 'N/A';
-
       setStats({
-        totalJobs: filteredScores.length,
-        totalApplications: filteredApps.length,
-        averageScore: filteredScores.length ? Math.round(totalScore / filteredScores.length) : 0,
-        conversionRate: filteredScores.length ? Math.round((filteredApps.length / filteredScores.length) * 100) : 0,
+        totalJobs: data.funnel?.scraped || 0,
+        totalApplications: totalApps,
+        averageScore,
+        conversionRate: data.funnel?.scraped ? Math.round((totalApps / data.funnel.scraped) * 100) : 0,
         topPlatform,
       });
 
       setChartData({
-        jobsByPlatform,
-        jobsByScore,
-        applicationFunnel: {
-          scraped: filteredScores.length,
-          matched: filteredScores.filter((s: any) => (s.skill_match_score || 0) >= 60).length,
-          applied: filteredApps.filter((a: any) => a.applied).length,
-          callback: filteredApps.filter((a: any) => a.callback).length,
-        },
+        jobsByPlatform: data.jobs_by_platform || {},
+        jobsByScore: data.jobs_by_score || { '0-59': 0, '60-79': 0, '80-100': 0 },
+        applicationFunnel: data.funnel || {}
       });
+
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
